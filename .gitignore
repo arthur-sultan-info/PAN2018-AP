@@ -1,11 +1,9 @@
-./Min dataset
-./Min dataset meta image
-./PAN dataset
-./feature_extractors/extracted-features
-./feature_extractors/bin
-./feature_extractors/cfg
-./feature_extractors/cfg
-./feature_extractors/__pycache__
-./train_classifiers
-./train_classifiers/labels_object_detection
-./train_classifiers/trained-classifiers
+Min dataset
+Min dataset meta image
+PAN dataset
+feature_extractors/extracted-features/*
+feature_extractors/bin/*
+feature_extractors/cfg/*
+train_classifiers/labels_object_detection/*
+train_classifiers/trained-classifiers/*
+logs.txt
