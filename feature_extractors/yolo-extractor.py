@@ -50,30 +50,35 @@ for language_dir in os.listdir(dataset_path):
 		current_author_images = dict()
 		current_author_images_index = -1
 		for filename in os.listdir(directory_path + '/' + author_image_dir):
-			current_author_images_index += 1
-			if(filename.split('.')[2] != 'jpeg'):
-				continue
-			img = cv2.imread(directory_path + '/' + author_image_dir + '/' + filename, cv2.IMREAD_COLOR)
-			if(img is None):
-				continue
+			try:
+				current_author_images_index += 1
+				if(filename.split('.')[2] != 'jpeg'):
+					continue
+				img = cv2.imread(directory_path + '/' + author_image_dir + '/' + filename, cv2.IMREAD_COLOR)
+				if(img is None):
+					continue
+					
+				features = dict()
 				
-			features = dict()
-			
-			# YOLO labels
-			result = tfnet.return_predict(img)
-			
-			labels = dict()
-			z=0
-			while(z < len(result)):
-				if(result[z]['label'] not in labels):
-					labels[result[z]['label']] = result[z]['confidence']
-				else:
-					labels[result[z]['label']] += result[z]['confidence']
-				z+=1
-			
-			features['labels'] = labels
-			
-			current_author_images[current_author_images_index] = features
+				# YOLO labels
+				result = tfnet.return_predict(img)
+				
+				labels = dict()
+				z=0
+				while(z < len(result)):
+					if(result[z]['label'] not in labels):
+						labels[result[z]['label']] = result[z]['confidence']
+					else:
+						labels[result[z]['label']] += result[z]['confidence']
+					z+=1
+				
+				features['labels'] = labels
+				
+				current_author_images[current_author_images_index] = features
+			except:
+				print('Error for', filename)
+				continue
+		
 		author_images[author_image_dir] = current_author_images
 		
 		i += 1
@@ -87,6 +92,6 @@ import pickle
 
 print('Saving object detection features -- This may take some time..')
 
-pickle.dump( author_images, open( output_path + '/author_images_yolo-low-train.p', "wb" ) )
+pickle.dump( author_images, open( output_path + '/author_images_yolo-all.p', "wb" ) )
 
 print('Object detection features extracted and saved at', output_path + '/author_images_yolo-low-train.p')

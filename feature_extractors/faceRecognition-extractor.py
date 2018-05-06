@@ -47,36 +47,41 @@ for language_dir in os.listdir(dataset_path):
 		current_author_images = dict()
 		current_author_images_index = -1
 		for filename in os.listdir(directory_path + '/' + author_image_dir):
-			current_author_images_index += 1
-			if(filename.split('.')[2] != 'jpeg'):
-				continue
-			img = cv2.imread(directory_path + '/' + author_image_dir + '/' + filename, cv2.IMREAD_COLOR)
-			if(img is None):
-				continue
+			try:
+				current_author_images_index += 1
+				if(filename.split('.')[2] != 'jpeg'):
+					continue
+				img = cv2.imread(directory_path + '/' + author_image_dir + '/' + filename, cv2.IMREAD_COLOR)
+				if(img is None):
+					continue
+					
+				features = dict()
 				
-			features = dict()
-			
-			numberOfMalesRecognized = 0
-			numberOfFemalesRecognized = 0
-			prediction, locs = pred.predict_one_image(directory_path + '/' + author_image_dir + '/' + filename, clf, labels)
-			
-			if(prediction is not None):
-				prediction = prediction.to_dict()
-				for recognizedPersonIndex in prediction['Male']:
-					if prediction['Male'][recognizedPersonIndex] >= 0.5:
-						numberOfMalesRecognized += 1
-					else:
-						numberOfFemalesRecognized += 1
+				numberOfMalesRecognized = 0
+				numberOfFemalesRecognized = 0
+				prediction, locs = pred.predict_one_image(directory_path + '/' + author_image_dir + '/' + filename, clf, labels)
+				
+				if(prediction is not None):
+					prediction = prediction.to_dict()
+					for recognizedPersonIndex in prediction['Male']:
+						if prediction['Male'][recognizedPersonIndex] >= 0.5:
+							numberOfMalesRecognized += 1
+						else:
+							numberOfFemalesRecognized += 1
 
-			features['Male'] = numberOfMalesRecognized
-			features['Female'] = numberOfFemalesRecognized
-			
-			current_author_images[current_author_images_index] = features
+				features['Male'] = numberOfMalesRecognized
+				features['Female'] = numberOfFemalesRecognized
+				
+				current_author_images[current_author_images_index] = features
+			except:
+				print('Error for ', filename)
+				continue
+		
 		author_images[author_image_dir] = current_author_images
 		
 		i += 1
 		clear_output()
-		print(str(float((i/250)*100)) + ' %')
+		print(str(float((i/7500)*100)) + ' %')
 
 print(len(author_images))
 
@@ -84,6 +89,6 @@ print(len(author_images))
 
 print('Saving face detection features -- This may take some time..')
 
-pickle.dump( author_images, open( output_path + '/author_images_face_recognition-low-train.p', "wb" ) )
+pickle.dump( author_images, open( output_path + '/author_images_face_recognition-all.p', "wb" ) )
 
-print('Face detection features extracted and saved at', output_path + '/author_images_face_recognition-low-train.p')
+print('Face detection features extracted and saved at', output_path + '/author_images_face_recognition-all.p')
