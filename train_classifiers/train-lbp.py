@@ -1,4 +1,5 @@
 import numpy as np
+import pickle
 
 def parse_gender_dict(truthFilePath):
 	with open(truthFilePath) as f:
@@ -48,10 +49,37 @@ def X_ToSparseMatrix(X_train):
     resultSparseMatrix = csr_matrix((data, (row, col)), shape=(numberOfRows, numberOfColumns))
     
     return (resultSparseMatrix, convertLabelToInt)
+
+def get70Split(options):
+	ar_split = dict()
+	with open(options['split_path'] + '/ar.pkl'  , "rb" ) as input_file:
+		ar_split = pickle.load(input_file)
+	en_split = dict()
+	with open(options['split_path'] + '/en.pkl'  , "rb" ) as input_file:
+		en_split = pickle.load(input_file)
+	es_split = dict()
+	with open(options['split_path'] + '/es.pkl'  , "rb" ) as input_file:
+		es_split = pickle.load(input_file)
 	
+	totalSplit = ar_split
+	totalSplit.update(en_split)
+	totalSplit.update(es_split)
+	
+	split70 = []
+	for author in totalSplit:
+		if totalSplit[author] == 70:
+			split70.append(author)
+	return split70
+
+def get70SplitFeatures(author_images_yolo, options):
+	split70 = get70Split(options)
+	author_images_yolo_70split = dict()
+	for author in author_images_yolo:
+		if author in split70:
+			author_images_yolo_70split[author] = author_images_yolo[author]
+	return author_images_yolo_70split
 	
 def train(options):
-	import pickle
 
 	# Loading color histograms
 	author_images_CH = dict()
@@ -63,6 +91,8 @@ def train(options):
 	gender_dict.update(parse_gender_dict(options['dataset_path'] + '/en/en.txt'))
 	gender_dict.update(parse_gender_dict(options['dataset_path'] + '/es/es.txt'))
 	
+	# Keeping only the features selected for the low train split (the 70 split)
+	author_images_CH = get70SplitFeatures(author_images_CH, options)
 	
 	# Creating a dict with an incremental id as key and the array [features, author_gender] as value, for each image
 	dataset = dict()
@@ -129,7 +159,8 @@ def train(options):
 if __name__ == "__main__":
 	options = {
 		'features_path': "../feature_extractors/extracted-features/author_images_global_features-low-train.p",
-		'dataset_path': "../Min dataset"
+		'dataset_path': "../Min dataset",
+		'split_path': "../output/splitting-low-meta-combine"
 	}
 	
 	train(options)

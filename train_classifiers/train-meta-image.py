@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import pickle
 
 def parse_gender_dict(truthFilePath):
 	with open(truthFilePath) as f:
@@ -148,6 +149,35 @@ def createDataset(author_images, gender_dict):
 	
 	return dataset
 
+def get20Split(options):
+	ar_split = dict()
+	with open(options['split_path'] + '/ar.pkl'  , "rb" ) as input_file:
+		ar_split = pickle.load(input_file)
+	en_split = dict()
+	with open(options['split_path'] + '/en.pkl'  , "rb" ) as input_file:
+		en_split = pickle.load(input_file)
+	es_split = dict()
+	with open(options['split_path'] + '/es.pkl'  , "rb" ) as input_file:
+		es_split = pickle.load(input_file)
+	
+	totalSplit = ar_split
+	totalSplit.update(en_split)
+	totalSplit.update(es_split)
+	
+	split20 = []
+	for author in totalSplit:
+		if totalSplit[author] == 20:
+			split20.append(author)
+	return split20
+
+def get20SplitFeatures(author_images, options):
+	split20 = get20Split(options)
+	author_images_20split = dict()
+	for author in author_images:
+		if author in split20:
+			author_images_20split[author] = author_images[author]
+	return author_images_20split
+
 def getXandYandIds(dataset):
 	X = []
 	y = []
@@ -159,7 +189,6 @@ def getXandYandIds(dataset):
 	return X, y, ids
 	
 def train(options):
-	import pickle
 
 	# Loading object detection labels
 	author_images_object_detection = dict()
@@ -179,10 +208,18 @@ def train(options):
 	
 	# Concatening all features in a big author_images
 	for author in author_images_object_detection:
-		for image_index in author_images_object_detection[author]:
-			author_images_object_detection[author][image_index].update(author_images_global_features[author][image_index])
-			author_images_object_detection[author][image_index].update(author_images_face_recognition[author][image_index])
+		if author in author_images_global_features:
+			for image_index in author_images_object_detection[author]:
+				if image_index in author_images_global_features[author]:
+					author_images_object_detection[author][image_index].update(author_images_global_features[author][image_index])
+		if author in author_images_face_recognition:
+			for image_index in author_images_object_detection[author]:
+				if image_index in author_images_face_recognition[author]:
+					author_images_object_detection[author][image_index].update(author_images_face_recognition[author][image_index])
 	author_images = author_images_object_detection
+	
+	# Keeping only the features selected for the meta image train split (the 20 split)
+	author_images = get20SplitFeatures(author_images, options)
 	
 	# Loading the truth file, for each language
 	gender_dict = parse_gender_dict(options['dataset_path'] + '/ar/ar.txt')
@@ -267,7 +304,7 @@ def train(options):
 	best_classifier = None
 	best_accuracy = 0
 	for clf in classifiers:
-		current_scores = cross_val_score(clf, input_meta_image, y, cv=20, scoring='accuracy', n_jobs=-1, verbose=1)
+		current_scores = cross_val_score(clf, input_meta_image, y, cv=20, scoring='accuracy', n_jobs=2, verbose=1)
 		if current_scores.mean() > best_accuracy:
 			best_accuracy = current_scores.mean()
 			best_classifier = clf
@@ -290,15 +327,16 @@ def train(options):
 
 if __name__ == "__main__":
 	options = {
-		'features_path_yolo': "../feature_extractors/extracted-features/author_images_yolo-meta-train.p",
-		'features_path_global_features': "../feature_extractors/extracted-features/author_images_global_features-meta-train.p",
-		'features_path_face_recognition': "../feature_extractors/extracted-features/author_images_face_recognition-meta-train.p",
+		'features_path_yolo': "../feature_extractors/extracted-features/author_images_yolo-all.p",
+		'features_path_global_features': "../feature_extractors/extracted-features/author_images_global_features-all.p",
+		'features_path_face_recognition': "../feature_extractors/extracted-features/author_images_face_recognition-all.p",
 		'clf_path_object_detection': "./trained-classifiers/object-detection-classifier.p",
 		'clf_path_lbp': "./trained-classifiers/lbp-classifier.p",
 		'clf_path_color_histogram': "./trained-classifiers/color-histogram-classifier.p",
 		'clf_path_face_recognition': "./trained-classifiers/face-recognition-classifier.p",
 		'convertLabelToInt_path': './labels_object_detection/convertLabelToInt.p',
-		'dataset_path': "../Min dataset meta image"
+		'dataset_path': "../Min dataset meta image",
+		'split_path': "../output/splitting-low-meta-combine"
 	}
 	
 	train(options)
