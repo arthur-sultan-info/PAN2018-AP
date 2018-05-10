@@ -1,9 +1,11 @@
 import cv2
+from darkflow.net.build import TFNet
 from PIL import Image
 from IPython.display import clear_output
 import os
 import argparse
 import consts as cst
+
 
 # LOADING PARSER
 parser = argparse.ArgumentParser()
@@ -12,6 +14,7 @@ parser.add_argument("--dataset", help="Path to the whole dataset")
 parser.add_argument("--output", help="Path to the output file")
 
 args = parser.parse_args()
+
 
 if(args.dataset is None):
 	dataset_path = cst.DEFAULT_DATASET_PATH
@@ -23,20 +26,19 @@ if(args.output is None):
 else:
 	output_path = args.output
 
-# LOADING FACE RECOGNITION
-from face_recognition import face_locations
-from PIL import Image, ImageDraw, ImageFont
-from faceClassification import pred
-from tqdm import tqdm
-import pickle
 
-with open('faceClassification/face_model.pkl', 'rb') as f:
-        clf, labels = pickle.load(f)
+# LOADING YOLO
+options = {
+    "model": 'cfg/yolo.cfg',
+    'load': 'bin/yolo.weights',
+    'threshold': 0.2
+}
+
+tfnet = TFNet(options)
 
 
-
-# EXTRACTING FACES FROM IMAGES OF EACH LANGUAGE
-print('Extracting face detection features -- This takes some time..')
+# EXTRACTING OBJECTS FROM IMAGES OF EACH LANGUAGE
+print('Extracting object detection features -- This takes some time..')
 
 author_images = dict()
 i=0
@@ -57,24 +59,23 @@ for language_dir in os.listdir(dataset_path):
 					
 				features = dict()
 				
-				numberOfMalesRecognized = 0
-				numberOfFemalesRecognized = 0
-				prediction, locs = pred.predict_one_image(directory_path + '/' + author_image_dir + '/' + filename, clf, labels)
+				# YOLO labels
+				result = tfnet.return_predict(img)
 				
-				if(prediction is not None):
-					prediction = prediction.to_dict()
-					for recognizedPersonIndex in prediction['Male']:
-						if prediction['Male'][recognizedPersonIndex] >= 0.5:
-							numberOfMalesRecognized += 1
-						else:
-							numberOfFemalesRecognized += 1
-
-				features['Male'] = numberOfMalesRecognized
-				features['Female'] = numberOfFemalesRecognized
+				labels = dict()
+				z=0
+				while(z < len(result)):
+					if(result[z]['label'] not in labels):
+						labels[result[z]['label']] = result[z]['confidence']
+					else:
+						labels[result[z]['label']] += result[z]['confidence']
+					z+=1
+				
+				features['labels'] = labels
 				
 				current_author_images[current_author_images_index] = features
 			except:
-				print('Error for ', filename)
+				print('Error for', filename)
 				continue
 		
 		author_images[author_image_dir] = current_author_images
@@ -86,9 +87,10 @@ for language_dir in os.listdir(dataset_path):
 print(len(author_images))
 
 # SAVING RESULT WITH PICKLE
+import pickle
 
-print('Saving face detection features -- This may take some time..')
+print('Saving object detection features -- This may take some time..')
 
-pickle.dump( author_images, open( output_path + '/author_images_face_recognition-all.p', "wb" ) )
+pickle.dump( author_images, open( output_path + '/author_images_yolo-all.p', "wb" ) )
 
-print('Face detection features extracted and saved at', output_path + '/author_images_face_recognition-all.p')
+print('Object detection features extracted and saved at', output_path + '/author_images_yolo-low-train.p')
